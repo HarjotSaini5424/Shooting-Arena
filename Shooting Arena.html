@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Shooting Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #222;
+            overflow: hidden; /* Prevent scrollbars */
+            font-family: 'Inter', sans-serif; /* Using Inter as specified */
+            color: #eee;
+            flex-direction: column;
+        }
+
+        #game-container {
+            position: relative;
+            background-color: #000;
+            border: 5px solid #0f0;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px; /* Padding around canvas */
+        }
+
+        canvas {
+            background-color: #000;
+            display: block;
+            border-radius: 10px;
+            touch-action: manipulation; /* Prevent default touch actions like double-tap zoom */
+        }
+
+        #game-info {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
+            z-index: 10;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 2em;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 20;
+            border-radius: 15px;
+        }
+
+        #restart-button {
+            padding: 15px 30px;
+            margin-top: 30px;
+            font-size: 1.2em;
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 255, 0, 0.5);
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #restart-button:hover {
+            background-color: #0c0;
+            box-shadow: 0 8px 20px rgba(0, 255, 0, 0.7);
+            transform: translateY(-2px);
+        }
+
+        #touch-controls {
+            display: none; /* Hidden by default, shown on small screens */
+            position: absolute;
+            bottom: 20px;
+            width: calc(100% - 40px); /* Adjust for padding */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 15;
+            padding: 0 20px; /* Match container padding */
+            box-sizing: border-box;
+        }
+
+        .touch-button {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(0, 255, 0, 0.4);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3em;
+            color: #000;
+            font-weight: bold;
+            user-select: none; /* Prevent text selection */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            transition: background-color 0.2s;
+        }
+
+        .touch-button:active {
+            background-color: rgba(0, 255, 0, 0.8);
+        }
+
+        #shoot-button {
+            width: 100px;
+            height: 100px;
+            background-color: rgba(255, 0, 0, 0.6);
+            border-radius: 50%;
+            font-size: 2em;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
+        }
+
+        #shoot-button:active {
+            background-color: rgba(255, 0, 0, 0.9);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #game-container {
+                width: 95vw; /* Make game container take more width on small screens */
+                height: 80vh; /* Adjust height */
+                padding: 10px;
+            }
+
+            canvas {
+                width: 100%;
+                height: auto; /* Allow canvas to scale */
+            }
+
+            #game-info {
+                font-size: 1.2em;
+                top: 10px;
+            }
+
+            #game-over-screen {
+                font-size: 1.5em;
+            }
+
+            #restart-button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+
+            #touch-controls {
+                display: flex; /* Show touch controls on small screens */
+            }
+
+            .touch-button {
+                width: 60px;
+                height: 60px;
+                font-size: 2em;
+            }
+
+            #shoot-button {
+                width: 80px;
+                height: 80px;
+                font-size: 1.5em;
+            }
+        }
+    </style>
+    <!-- Tone.js for simple sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-info">
+            <span id="score">Score: 0</span>
+            <span id="lives">Lives: 3</span>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="game-over-screen" style="display: none;">
+            <h2>Game Over!</h2>
+            <p id="final-score"></p>
+            <button id="restart-button">Restart Game</button>
+        </div>
+
+        <div id="touch-controls">
+            <div id="left-button" class="touch-button">&larr;</div>
+            <div id="shoot-button" class="touch-button">FIRE</div>
+            <div id="right-button" class="touch-button">&rarr;</div>
+        </div>
+    </div>
+
+    <script>
+        // Setup Tone.js for sound effects
+        const shootSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.001,
+                decay: 0.1,
+                sustain: 0.01,
+                release: 0.1
+            }
+        }).toDestination();
+
+        const hitSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: {
+                type: "triangle"
+            },
+            envelope: {
+                attack: 0.001,
+                decay: 0.05,
+                sustain: 0.01,
+                release: 0.05
+            }
+        }).toDestination();
+
+        const gameOverSynth = new Tone.MembraneSynth().toDestination();
+
+
+        // Get canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables
+        let player, bullets, enemies, score, lives, gameOver, lastEnemySpawnTime;
+        const enemySpawnInterval = 1500; // milliseconds between enemy spawns
+
+        // UI elements
+        const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+
+        // Touch control buttons
+        const leftButton = document.getElementById('left-button');
+        const rightButton = document.getElementById('right-button');
+        const shootButton = document.getElementById('shoot-button');
+
+        // Keyboard input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            // Prevent default scroll behavior for arrow keys and spacebar
+            if (['ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Touch input handling
+        let touchLeft = false;
+        let touchRight = false;
+        let touchShoot = false;
+
+        leftButton.addEventListener('touchstart', (e) => { e.preventDefault(); touchLeft = true; });
+        leftButton.addEventListener('touchend', (e) => { e.preventDefault(); touchLeft = false; });
+        rightButton.addEventListener('touchstart', (e) => { e.preventDefault(); touchRight = true; });
+        rightButton.addEventListener('touchend', (e) => { e.preventDefault(); touchRight = false; });
+        shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); touchShoot = true; });
+        shootButton.addEventListener('touchend', (e) => { e.preventDefault(); touchShoot = false; });
+
+        // Game objects
+        class Player {
+            constructor() {
+                this.width = 60;
+                this.height = 20;
+                this.x = (canvas.width - this.width) / 2;
+                this.y = canvas.height - this.height - 30; // 30px from bottom
+                this.speed = 7;
+                this.color = '#00f'; // Blue player
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                // Main body
+                ctx.roundRect(this.x, this.y, this.width, this.height, 5);
+                // Cannon
+                ctx.roundRect(this.x + this.width / 2 - 5, this.y - 15, 10, 15, 3);
+                ctx.fill();
+            }
+
+            update() {
+                if (keys['ArrowLeft'] || touchLeft) {
+                    this.x -= this.speed;
+                }
+                if (keys['ArrowRight'] || touchRight) {
+                    this.x += this.speed;
+                }
+
+                // Boundary check
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+            }
+        }
+
+        class Bullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 5;
+                this.height = 15;
+                this.speed = 10;
+                this.color = '#f00'; // Red bullet
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.roundRect(this.x, this.y, this.width, this.height, 2);
+                ctx.fill();
+            }
+
+            update() {
+                this.y -= this.speed;
+            }
+        }
+
+        class Enemy {
+            constructor() {
+                this.width = 40;
+                this.height = 40;
+                this.x = Math.random() * (canvas.width - this.width);
+                this.y = -this.height; // Start above canvas
+                this.speed = 1 + (score / 1000); // Speed increases with score
+                this.color = '#0f0'; // Green enemy
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                // Basic alien shape (square with two "eyes")
+                ctx.roundRect(this.x, this.y, this.width, this.height, 8);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width * 0.3, this.y + this.height * 0.3, 5, 0, Math.PI * 2);
+                ctx.arc(this.x + this.width * 0.7, this.y + this.height * 0.3, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+        }
+
+        // Initialize game
+        function initGame() {
+            // Set canvas size dynamically
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            player = new Player();
+            bullets = [];
+            enemies = [];
+            score = 0;
+            lives = 3;
+            gameOver = false;
+            lastEnemySpawnTime = 0;
+
+            scoreDisplay.textContent = `Score: ${score}`;
+            livesDisplay.textContent = `Lives: ${lives}`;
+            gameOverScreen.style.display = 'none'; // Hide game over screen
+            requestAnimationFrame(gameLoop); // Start the game loop
+        }
+
+        // Adjust canvas size based on window
+        function resizeCanvas() {
+            // Set a maximum width for the game area to prevent it from being too large on desktops
+            const maxGameWidth = 800;
+            const maxGameHeight = 600;
+
+            let targetWidth = window.innerWidth * 0.9;
+            let targetHeight = window.innerHeight * 0.7;
+
+            // Constrain width and height
+            if (targetWidth > maxGameWidth) targetWidth = maxGameWidth;
+            if (targetHeight > maxGameHeight) targetHeight = maxGameHeight;
+
+            // Ensure aspect ratio for the game area itself (e.g., 4:3 or 16:9)
+            // For simplicity, let's just use the calculated targetWidth/Height.
+            // If specific aspect ratio is desired, calculate it here.
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // Recalculate player position after resize
+            if (player) {
+                player.x = (canvas.width - player.width) / 2;
+                player.y = canvas.height - player.height - 30;
+            }
+        }
+
+        // Game loop
+        function gameLoop(currentTime) {
+            if (gameOver) {
+                return; // Stop the loop if game is over
+            }
+
+            // Update game state
+            player.update();
+
+            // Handle bullet firing
+            if ((keys[' '] || touchShoot) && !player.isShooting) {
+                bullets.push(new Bullet(player.x + player.width / 2 - 2.5, player.y - 5));
+                shootSynth.triggerAttackRelease('C4', '8n'); // Play shoot sound
+                player.isShooting = true; // Prevent rapid firing
+            } else if (!keys[' '] && !touchShoot) {
+                player.isShooting = false;
+            }
+
+
+            bullets.forEach((bullet, index) => {
+                bullet.update();
+                // Remove bullets that go off-screen
+                if (bullet.y < 0) {
+                    bullets.splice(index, 1);
+                }
+            });
+
+            // Spawn enemies
+            if (currentTime - lastEnemySpawnTime > enemySpawnInterval) {
+                enemies.push(new Enemy());
+                lastEnemySpawnTime = currentTime;
+            }
+
+            enemies.forEach((enemy, enemyIndex) => {
+                enemy.update();
+                // Remove enemies that go off-screen (past player)
+                if (enemy.y > canvas.height) {
+                    enemies.splice(enemyIndex, 1);
+                    lives--; // Lose a life if enemy passes
+                    livesDisplay.textContent = `Lives: ${lives}`;
+                    if (lives <= 0) {
+                        endGame();
+                    }
+                }
+
+                // Bullet-enemy collision
+                bullets.forEach((bullet, bulletIndex) => {
+                    if (
+                        bullet.x < enemy.x + enemy.width &&
+                        bullet.x + bullet.width > enemy.x &&
+                        bullet.y < enemy.y + enemy.height &&
+                        bullet.y + bullet.height > enemy.y
+                    ) {
+                        // Collision! Remove both
+                        bullets.splice(bulletIndex, 1);
+                        enemies.splice(enemyIndex, 1);
+                        score += 10;
+                        scoreDisplay.textContent = `Score: ${score}`;
+                        hitSynth.triggerAttackRelease('G3', '16n'); // Play hit sound
+                    }
+                });
+
+                // Player-enemy collision
+                if (
+                    player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y
+                ) {
+                    lives--; // Lose a life
+                    livesDisplay.textContent = `Lives: ${lives}`;
+                    hitSynth.triggerAttackRelease('C2', '8n'); // Player hit sound
+                    enemies.splice(enemyIndex, 1); // Remove enemy
+                    if (lives <= 0) {
+                        endGame();
+                    }
+                }
+            });
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw game objects
+            player.draw();
+            bullets.forEach(bullet => bullet.draw());
+            enemies.forEach(enemy => enemy.draw());
+
+            requestAnimationFrame(gameLoop); // Continue the loop
+        }
+
+        // End game
+        function endGame() {
+            gameOver = true;
+            finalScoreDisplay.textContent = `Your Final Score: ${score}`;
+            gameOverScreen.style.display = 'flex'; // Show game over screen
+            gameOverSynth.triggerAttackRelease('C1', '2n'); // Play game over sound
+        }
+
+        // Restart game
+        restartButton.addEventListener('click', () => {
+            initGame(); // Re-initialize all game variables and start loop
+        });
+
+        // Initialize the game on window load
+        window.onload = function () {
+            initGame();
+        }
+    </script>
+</body>
+</html>
